@@ -198,7 +198,7 @@ class OnPolicyRunner:
                 # log to logger and terminal
                 if "/" in key:
                     self.writer.add_scalar(key, value, locs["it"])
-                    ep_string += f"""{f'{key}:':>{pad}} {value:.4f}\n"""
+                    ep_string += f"""{f'{{key:}}':>{pad}} {value:.4f}\n"""
                 else:
                     self.writer.add_scalar("Episode/" + key, value, locs["it"])
                     ep_string += f"""{f'Mean episode {key}:':>{pad}} {value:.4f}\n"""
@@ -212,6 +212,12 @@ class OnPolicyRunner:
         self.writer.add_scalar("Perf/total_fps", fps, locs["it"])
         self.writer.add_scalar("Perf/collection time", locs["collection_time"], locs["it"])
         self.writer.add_scalar("Perf/learning_time", locs["learn_time"], locs["it"])
+
+        # log applied torque
+        if hasattr(self.env, "applied_effort"):
+            mean_abs_torque = torch.mean(torch.abs(self.env.applied_effort))
+            self.writer.add_scalar("Metrics/mean_abs_torque", mean_abs_torque.item(), locs["it"])
+
         if len(locs["rewbuffer"]) > 0:
             self.writer.add_scalar("Train/mean_reward", statistics.mean(locs["rewbuffer"]), locs["it"])
             self.writer.add_scalar("Train/mean_episode_length", statistics.mean(locs["lenbuffer"]), locs["it"])
@@ -225,8 +231,8 @@ class OnPolicyRunner:
 
         if len(locs["rewbuffer"]) > 0:
             log_string = (
-                f"""{'#' * width}\n"""
-                f"""{str.center(width, ' ')}\n\n"""
+                f"""{'#' * width}\n"
+                f"""{str.center(width, ' ')}\n\n"
                 f"""{'Computation:':>{pad}} {fps:.0f} steps/s (collection: {locs[
                             'collection_time']:.3f}s, learning {locs['learn_time']:.3f}s)\n"""
                 f"""{'Value function loss:':>{pad}} {locs['mean_value_loss']:.4f}\n"""
