@@ -198,7 +198,7 @@ class OnPolicyRunner:
                 # log to logger and terminal
                 if "/" in key:
                     self.writer.add_scalar(key, value, locs["it"])
-                    ep_string += f"""{f'{key}:':>{pad}} {value:.4f}\n"""
+                    ep_string += f"""{f'{{key:}}':>{pad}} {value:.4f}\n"""
                 else:
                     self.writer.add_scalar("Episode/" + key, value, locs["it"])
                     ep_string += f"""{f'Mean episode {key}:':>{pad}} {value:.4f}\n"""
@@ -212,6 +212,26 @@ class OnPolicyRunner:
         self.writer.add_scalar("Perf/total_fps", fps, locs["it"])
         self.writer.add_scalar("Perf/collection time", locs["collection_time"], locs["it"])
         self.writer.add_scalar("Perf/learning_time", locs["learn_time"], locs["it"])
+
+        # log commanded and applied torque
+        # Access unwrapped environment following wrapper pattern best practices
+        unwrapped_env = getattr(self.env, 'unwrapped', getattr(self.env, 'env', self.env))
+        
+        if hasattr(unwrapped_env, 'scene') and hasattr(unwrapped_env.scene, 'keys') and 'robot' in unwrapped_env.scene.keys():
+            robot = unwrapped_env.scene['robot']
+            
+            # Log commanded torque (what controller requests)
+            if hasattr(robot, 'data') and robot.data.joint_effort_target is not None:
+                mean_commanded_torque = torch.mean(torch.abs(robot.data.joint_effort_target))
+                self.writer.add_scalar("Metrics/mean_commanded_torque", mean_commanded_torque.item(), locs["it"])
+            
+            # Log applied torque (actual motor output after clipping)
+            if hasattr(robot, 'actuators'):
+                for actuator_name, actuator in robot.actuators.items():
+                    if hasattr(actuator, 'applied_effort'):
+                        mean_applied_torque = torch.mean(torch.abs(actuator.applied_effort))
+                        self.writer.add_scalar(f"Metrics/mean_applied_torque_{actuator_name}", mean_applied_torque.item(), locs["it"])
+
         if len(locs["rewbuffer"]) > 0:
             self.writer.add_scalar("Train/mean_reward", statistics.mean(locs["rewbuffer"]), locs["it"])
             self.writer.add_scalar("Train/mean_episode_length", statistics.mean(locs["lenbuffer"]), locs["it"])
