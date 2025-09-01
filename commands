@@ -1,0 +1,32 @@
+cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
+~/IsaacLab/isaaclab.sh -p scripts/co_rl/train.py --task Isaac-Velocity-Flat-Flamingo-v1-ppo --algo ppo --num_envs 4 --num_policy_stacks 2 --num_critic_stacks 2 \
+2>&1 | tee "$HOME/source/Isaac-RL-Two-wheel-Legged-Bot/logs/co_rl_Train-$(TZ='America/Toronto' date +'%Y%m%d_%H%M%S').log"
+
+Play Command
+cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
+~/IsaacLab/isaaclab.sh -p scripts/co_rl/play.py --task Isaac-Velocity-Flat-Flamingo-v1-ppo --algo ppo --num_envs 1 --num_policy_stacks 2 --num_critic_stacks 2 
+  
+
+cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
+~/IsaacLab/isaaclab.sh  -p -m tensorboard.main --logdir ./logs/co_rl/ --bind_all
+
+
+# headless video recording
+
+  cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
+  ~/IsaacLab/isaaclab.sh -p scripts/co_rl/train.py \
+    --task Isaac-Velocity-Flat-Flamingo-v1-ppo \
+    --algo ppo \
+    --num_envs 16 \
+    --num_policy_stacks 2 \
+    --num_critic_stacks 2 \
+    --headless \
+    --enable_cameras \
+    --video \
+    --video_length 200 \
+    --video_interval 500 \
+    2>&1 | tee "$HOME/source/Isaac-RL-Two-wheel-Legged-Bot/logs/co_rl_Train-$(TZ='America/Toronto' date +'%Y%m%d_%H%M%S').log"
+
+# Tensorboard Setup
+  cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
+  ~/IsaacLab/isaaclab.sh  -p -m tensorboard.main --logdir ./logs/co_rl/ --bind_all
