@@ -4,7 +4,8 @@ cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
 
 Play Command
 cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
-~/IsaacLab/isaaclab.sh -p scripts/co_rl/play.py --task Isaac-Velocity-Flat-Flamingo-v1-ppo --algo ppo --num_envs 1 --num_policy_stacks 2 --num_critic_stacks 2 
+~/IsaacLab/isaaclab.sh -p scripts/co_rl/play.py --task Isaac-Velocity-Flat-Flamingo-v1-ppo --algo ppo --num_envs 1 --num_policy_stacks 2 --num_critic_stacks 2 \
+2>&1 | tee "$HOME/source/Isaac-RL-Two-wheel-Legged-Bot/logs/co_rl_Play-$(TZ='America/Toronto' date +'%Y%m%d_%H%M%S').log"
   
 
 cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
@@ -30,3 +31,7 @@ cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
 # Tensorboard Setup
   cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
   ~/IsaacLab/isaaclab.sh  -p -m tensorboard.main --logdir ./logs/co_rl/ --bind_all
+
+
+#Gemini Source
+export PATH=~/.npm-global/bin:$PATH
