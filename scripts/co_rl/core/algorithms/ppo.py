@@ -58,8 +58,13 @@ class PPO:
 
     def init_storage(self, cfg, num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, action_shape):
         self.update_late_cfg(cfg)
+        
+        # Ensure device is properly converted to torch.device
+        import torch
+        device = torch.device(self.device) if isinstance(self.device, str) else self.device
+        
         self.storage = RolloutStorage(
-            cfg , num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, action_shape, self.device
+            cfg, num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, action_shape, device=device
         )
     
     def update_late_cfg(self, cfg):
