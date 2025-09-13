@@ -4,7 +4,7 @@ cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
 
 Play Command
 cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
-~/IsaacLab/isaaclab.sh -p scripts/co_rl/play.py --task Isaac-Velocity-Flat-Flamingo-v1-ppo --algo ppo --num_envs 1 --num_policy_stacks 2 --num_critic_stacks 2 \
+~/IsaacLab/isaaclab.sh -p scripts/co_rl/play.py --task Isaac-Velocity-Flat-Flamingo-v1-ppo --algo ppo --num_envs 1 --num_policy_stacks 2 --num_critic_stacks 2 --load_run 2025-08-28_16-19-37 \
 2>&1 | tee "$HOME/source/Isaac-RL-Two-wheel-Legged-Bot/logs/co_rl_Play-$(TZ='America/Toronto' date +'%Y%m%d_%H%M%S').log"
   
 
