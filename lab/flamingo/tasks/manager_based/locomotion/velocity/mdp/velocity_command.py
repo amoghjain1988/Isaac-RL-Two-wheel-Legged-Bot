@@ -125,6 +125,12 @@ class UniformVelocityWithZCommand(UniformVelocityCommand):
         if len(standing_env_ids) > 0:
             self.vel_command_b[standing_env_ids, 3] = self.standing_choice
 
+        # -- Start of user edit --
+        # Amogh-Test changed the class to accept a forward velocity command
+        # Force a constant forward velocity command for testing
+        self.vel_command_b[:] = torch.tensor([1.0, 0.0, 0.0, 0.3], device=self.device)
+        # -- End of user edit --
+
     def gcd(self, env_ids: Sequence[int], num_categories: int):
         """Generate a categorical distribution for the given number of categories.
 
