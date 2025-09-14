@@ -128,7 +128,7 @@ class UniformVelocityWithZCommand(UniformVelocityCommand):
         # -- Start of user edit --
         # Amogh-Test changed the class to accept a forward velocity command
         # Force a constant forward velocity command for testing
-        self.vel_command_b[:] = torch.tensor([1.0, 0.0, 0.0, 0.3], device=self.device)
+        # self.vel_command_b[:] = torch.tensor([1.0, 0.0, 0.0, 0.3], device=self.device)
         # -- End of user edit --
 
     def gcd(self, env_ids: Sequence[int], num_categories: int):

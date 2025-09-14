@@ -1,0 +1,9 @@
+  I've examined the flat_env_stand_drive_cfg.py file, and here are the speed parameters the
+  policy was trained with:
+
+   * Forward Velocity (`lin_vel_x`): (-1.5, 1.5) m/s
+   * Sideways Velocity (`lin_vel_y`): (0.0, 0.0) m/s
+   * Turning Velocity (`ang_vel_z`): (-2.5, 2.5) rad/s
+   * Height (`pos_z`): (0.0, 0.0) m/s (Note: This seems to be overridden elsewhere, as your
+     previous command of 0.3 worked. The gcd method in the command class uses a different
+     range if the tuple is not (0.0, 0.0)).
