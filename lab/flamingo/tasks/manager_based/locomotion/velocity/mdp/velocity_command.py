@@ -185,23 +185,11 @@ class UniformVelocityWithZCommandCfg(UniformVelocityCommandCfg):
     """Time for which the initial phase lasts."""
 
 
-@configclass
-class KeyboardTeleopCommandCfg(UniformVelocityWithZCommandCfg):
-    """Configuration for keyboard teleop command generator."""
-    
-    class_type: type = KeyboardTeleopCommand
-    
-    # Keyboard sensitivity settings - matched to robot ranges
-    v_x_sensitivity: float = 1.0      # Matches lin_vel_x: (-1.0, 1.0)
-    v_y_sensitivity: float = 0.5      # Conservative y velocity
-    omega_z_sensitivity: float = 2.0  # Matches ang_vel_z: (-2.0, 2.0)
-    target_height: float = 0.25       # Mid-range of pos_z: (0.1931942, 0.3531942)
-
 
 class KeyboardTeleopCommand(UniformVelocityWithZCommand):
     """Keyboard teleoperation command generator."""
     
-    def __init__(self, cfg: KeyboardTeleopCommandCfg, env: ManagerBasedEnv):
+    def __init__(self, cfg: "KeyboardTeleopCommandCfg", env: ManagerBasedEnv):
         """Initialize the keyboard teleop command generator.
         
         Args:
@@ -235,3 +223,16 @@ class KeyboardTeleopCommand(UniformVelocityWithZCommand):
         self.vel_command_b[:, 1] = vy  
         self.vel_command_b[:, 2] = omega_z
         self.vel_command_b[:, 3] = self.cfg.target_height  # Fixed height in safe range
+
+
+@configclass
+class KeyboardTeleopCommandCfg(UniformVelocityWithZCommandCfg):
+    """Configuration for keyboard teleop command generator."""
+    
+    class_type: type = KeyboardTeleopCommand
+    
+    # Keyboard sensitivity settings - matched to robot ranges
+    v_x_sensitivity: float = 1.0      # Matches lin_vel_x: (-1.0, 1.0)
+    v_y_sensitivity: float = 0.5      # Conservative y velocity
+    omega_z_sensitivity: float = 2.0  # Matches ang_vel_z: (-2.0, 2.0)
+    target_height: float = 0.25       # Mid-range of pos_z: (0.1931942, 0.3531942)
