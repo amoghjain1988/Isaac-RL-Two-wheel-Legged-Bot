@@ -1,17 +1,39 @@
+
+
+# //..............................................
+# //.FFFFFFFFFF.LLL...........AAAAA..AAATTTTTTTT..
+# //.FFFFFFFFFF.LLL...........AAAAA..AAATTTTTTTT..
+# //.FFFFFFFFFF.LLL...........AAAAA..AAATTTTTTTT..
+# //.FFF........LLL..........AAAAAAA.....TTTT.....
+# //.FFF........LLL..........AAAAAAA.....TTTT.....
+# //.FFF........LLL..........AAA.AAA.....TTTT.....
+# //.FFFFFFFFFF.LLL.........AAAA.AAAA....TTTT.....
+# //.FFFFFFFFFF.LLL.........AAAA..AAA....TTTT.....
+# //.FFFFFFFFFF.LLL........AAAAAAAAAAA...TTTT.....
+# //.FFF........LLL........AAAAAAAAAAA...TTTT.....
+# //.FFF........LLL........AAA.....AAA...TTTT.....
+# //.FFF........LLLLLLLLLLLAAA.....AAAA..TTTT.....
+# //.FFF........LLLLLLLLLLLAAA.....AAAA..TTTT.....
+# //..............................................
+
+
+# Train on flat terrain
 cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
 ~/IsaacLab/isaaclab.sh -p scripts/co_rl/train.py --task Isaac-Velocity-Flat-Flamingo-v1-ppo --algo ppo --num_envs 4 --num_policy_stacks 2 --num_critic_stacks 2 \
 2>&1 | tee "$HOME/source/Isaac-RL-Two-wheel-Legged-Bot/logs/co_rl_Train-$(TZ='America/Toronto' date +'%Y%m%d_%H%M%S').log"
 
-Play Command
+# Play Command
 cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
-~/IsaacLab/isaaclab.sh -p scripts/co_rl/play.py --task Isaac-Velocity-Flat-Flamingo-v1-ppo --algo ppo --num_envs 1 --num_policy_stacks 2 --num_critic_stacks 2 
+~/IsaacLab/isaaclab.sh -p scripts/co_rl/play.py --task Isaac-Velocity-Flat-Flamingo-v1-ppo --algo ppo --num_envs 1 --num_policy_stacks 2 --num_critic_stacks 2 --load_run 2025-08-28_16-19-37 \
+2>&1 | tee "$HOME/source/Isaac-RL-Two-wheel-Legged-Bot/logs/co_rl_Play-$(TZ='America/Toronto' date +'%Y%m%d_%H%M%S').log"
   
+
 
 cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
 ~/IsaacLab/isaaclab.sh  -p -m tensorboard.main --logdir ./logs/co_rl/ --bind_all
 
 
-# headless video recording
+# headless video recording - Flat Terrain
 
   cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
   ~/IsaacLab/isaaclab.sh -p scripts/co_rl/train.py \
@@ -30,3 +52,57 @@ cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
 # Tensorboard Setup
   cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
   ~/IsaacLab/isaaclab.sh  -p -m tensorboard.main --logdir ./logs/co_rl/ --bind_all
+
+
+# //....................................................................
+# //.RRRRRRRRR.......OOOOOO.....UUU.....UUU.....GGGGGG.....HHH.....HHH..
+# //.RRRRRRRRRRR...OOOOOOOOOO...UUU.....UUU...GGGGGGGGGG...HHH.....HHH..
+# //.RRRRRRRRRRR..OOOOOOOOOOO...UUU.....UUU..GGGGGGGGGGGG..HHH.....HHH..
+# //.RRR....RRRR..OOOO....OOOO..UUU.....UUU..GGGG....GGGG..HHH.....HHH..
+# //.RRR.....RRR..OOO......OOO..UUU.....UUU..GGG......GG...HHH.....HHH..
+# //.RRR....RRRR.ROOO......OOOO.UUU.....UUU.UGGG...........HHHHHHHHHHH..
+# //.RRRRRRRRRRR.ROOO......OOOO.UUU.....UUU.UGGG...GGGGGG..HHHHHHHHHHH..
+# //.RRRRRRRRRR..ROOO......OOOO.UUU.....UUU.UGGG...GGGGGG..HHHHHHHHHHH..
+# //.RRRRRRRRR...ROOO......OOOO.UUU.....UUU.UGGG...GGGGGG..HHH.....HHH..
+# //.RRR...RRRR...OOOO....OOOO..UUUU...UUUU..GGGG.....GGG..HHH.....HHH..
+# //.RRR...RRRRR..OOOOO.OOOOOO..UUUUU.UUUUU..GGGGGG.GGGGG..HHH.....HHH..
+# //.RRR....RRRR...OOOOOOOOOO...UUUUUUUUUU....GGGGGGGGGGG..HHH.....HHH..
+# //.RRR.....RRRR...OOOOOOOO.....UUUUUUUUU.....GGGGGGGGG...HHH.....HHH..
+# //..................OOOO.........UUUUU.........GGGG...................
+# //....................................................................
+
+
+# Rough Terrain Training COmmand
+cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
+  ~/IsaacLab/isaaclab.sh -p scripts/co_rl/train.py --task Isaac-Velocity-Rough-Flamingo-v1-ppo --algo ppo --num_policy_stacks 2 --num_critic_stacks 2 \
+  2>&1 | tee "$HOME/source/Isaac-RL-Two-wheel-Legged-Bot/logs/complex_terrain_train-$(TZ='America/Toronto' date +'%Y%m%d_%H%M%S').log"
+
+
+
+# Rough Terrain Headless - Video Recorded  16 cameras, 400 and 1000
+
+cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
+~/IsaacLab/isaaclab.sh -p scripts/co_rl/train.py \
+  --task Isaac-Velocity-Rough-Flamingo-v1-ppo \
+  --algo ppo \
+  --num_envs 16 \
+  --num_policy_stacks 2 \
+  --num_critic_stacks 2 \
+  --headless \
+  --enable_cameras \
+  --video \
+  --video_length 400 \
+  --video_interval 1000 \
+  2>&1 | tee "$HOME/source/Isaac-RL-Two-wheel-Legged-Bot/logs/rough_terrain_train-$(TZ='America/Toronto' date +'%Y%m%d_%H%M%S').log"
+
+
+# play Command
+cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
+~/IsaacLab/isaaclab.sh -p scripts/co_rl/play.py --task Isaac-Velocity-Rough-Flamingo-v1-ppo --algo ppo --num_envs 1 --num_policy_stacks 2 --num_critic_stacks 2 --load_run 2025-09-14_11-04-38  --checkpoint model_6900.pt \
+2>&1 | tee "$HOME/source/Isaac-RL-Two-wheel-Legged-Bot/logs/co_rl_Play-$(TZ='America/Toronto' date +'%Y%m%d_%H%M%S').log"
+  
+
+
+# Tensorboard Setup
+cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
+~/IsaacLab/isaaclab.sh  -p -m tensorboard.main --logdir ./logs/co_rl/ --bind_all
