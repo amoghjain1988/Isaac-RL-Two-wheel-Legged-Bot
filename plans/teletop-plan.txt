@@ -1,0 +1,456 @@
+✦ Excellent. Let's refine the plan to be as minimally invasive as possible, while also being robust
+  enough to prevent common issues.
+
+  The core idea is to add your new keyboard class into the existing `velocity_command.py` file. This
+  avoids creating new files and simplifies the integration. The integration itself then becomes a true
+  one-line change in the environment configuration.
+
+  Here is the detailed plan.
+
+  The Strategy: Cannibalize and Re-wire
+
+   1. Add Code: We will add the new KeyboardTeleopCommand and its config KeyboardTeleopCommandCfg to the
+      bottom of the existing file:
+      lab/flamingo/tasks/manager_based/locomotion/velocity/mdp/velocity_command.py.
+   2. Re-wire: We will edit one line in the environment config file (.../flat_env_stand_drive_cfg.py) to
+      tell it to use our new keyboard class instead of the old random one.
+
+  ---
+
+  Part 1: Detailed Plan for the New Code
+
+  This is the design for the code you will add to velocity_command.py. It's planned to be robust and
+  avoid common pitfalls.
+
+  A. The Configuration Class: KeyboardTeleopCommandCfg
+  This class will define the settings for your keyboard controller.
+
+   * Structure: A standard @configclass.
+   * `class_type`: Will point to KeyboardTeleopCommand.
+   * Parameters:
+       * A nested @configclass named scales to hold the speed multipliers:
+           * lin_vel_x: Speed for forward/backward movement (e.g., 1.0 m/s).
+           * lin_vel_y: Speed for strafing left/right (e.g., 0.5 m/s).
+           * ang_vel_z: Speed for turning (e.g., 1.0 rad/s).
+       * target_height: The default Z-position to command (e.g., 0.3 m).
+
+  B. The Main Class: KeyboardTeleopCommand
+  This class will contain all the logic.
+
+   * Inheritance: It must inherit from CommandTerm to be a valid command manager.
+
+   * `__init__(self, cfg, env)` (Initialization)
+       1. Boilerplate: Call super().__init__, create the self.vel_command_b tensor.
+       2. State Variables: Create a dictionary to hold the state of the keys, e.g., self._key_state = 
+          {"forward": False, "backward": False, ...}.
+       3. Get Keyboard Interface (Pitfall Prevention): To avoid errors, you must get the keyboard
+          interface from the running Isaac Sim application. The reliable way to do this is:
+
+   1         import omni.kit.app
+   2         self._app = omni.kit.app.get_app_interface()
+   3         self._input = self._app.get_input_system()
+       4. Subscribe to Events (Pitfall Prevention): Subscribe your event handler function and,
+          crucially, store the subscription object. This is essential for cleanup.
+   1         self._subscription = self._input.subscribe_to_keyboard_events(self
+     ._on_keyboard_event)
+
+   * `_finalize(self)` (Cleanup - Pitfall Prevention)
+       * You should add this method to your class. It will be called when the simulation ends.
+       * Its job is to unsubscribe from the keyboard events to prevent memory leaks or crashes when you
+         restart the simulation.
+
+   1         if self._subscription:
+   2             self._input.unsubscribe_from_keyboard_events(self._subscription)
+   3             self._subscription = None
+
+   * `_on_keyboard_event(self, event)` (The Event Handler)
+       1. Key Mapping: Create a dictionary that maps the carb.input key enums to your internal state
+          names, e.g., {carb.input.KeyboardInput.KEY_W: "forward", carb.input.KeyboardInput.KEY_S: 
+          "backward", ...}.
+       2. Update State: Check the event.input against your map. If it matches, update the
+          self._key_state dictionary based on the event.type (KEY_PRESS or KEY_RELEASE).
+       3. Return `False`: The function must return False so that you don't block other parts of Isaac
+          Sim (like the viewport controls) from using the keyboard.
+
+   * `_update_command(self)` (The Per-Step Logic)
+       1. This function runs on every simulation step.
+       2. It reads the self._key_state dictionary.
+       3. It computes the desired velocities (vx, vy, v_yaw) based on which keys are currently pressed.
+          Use if/elif blocks to handle opposing keys (e.g., if both W and S are pressed, they cancel
+          out).
+       4. It constructs the final 4D command vector using the computed velocities and the
+          cfg.target_height.
+       5. It writes this vector into the command buffer: self.vel_command_b[:] = ....
+
+  ---
+
+  Part 2: Detailed Plan for the Minimal Integration
+
+  This is where you make the "one-line change".
+
+   1. File to Edit: Open lab/flamingo/tasks/manager_based/locomotion/velocity/flamingo_env/flat_env/stan
+      d_drive/flat_env_stand_drive_cfg.py.
+
+   2. The Changes:
+       * Line to Add: At the top, find the line from ...mdp.velocity_command import 
+         UniformVelocityWithZCommandCfg. Modify it to also import your new config class:
+
+   1         # FROM:
+   2         from ...mdp.velocity_command import UniformVelocityWithZCommandCfg
+   3         # TO:
+   4         from ...mdp.velocity_command import UniformVelocityWithZCommandCfg,
+     KeyboardTeleopCommandCfg
+       * Line to Replace: Find the base_velocity definition inside the Commands class. Replace the entire
+         UniformVelocityWithZCommandCfg(...) block with your new KeyboardTeleopCommandCfg(...).
+
+   1         # REPLACE THIS:
+   2         base_velocity: UniformVelocityWithZCommandCfg = UniformVelocityWithZCommandCfg(...)
+   3 
+   4         # WITH THIS:
+   5         base_velocity: KeyboardTeleopCommandCfg = KeyboardTeleopCommandCfg(
+   6             scales=KeyboardTeleopCommandCfg.Scales(lin_vel_x=1.0, ang_vel_z=1.0),
+   7             target_height=0.3
+   8         )
+
+  This plan provides a complete, robust design for the teleop controller and a clear, minimal path for
+  integration. It addresses potential issues like event subscription management upfront.
+
+
+--------------------------------------
+
+
+Refined Teleop Command Plan                                                                               │ │
+│ │                                                                                                           │ │
+│ │ After analyzing your codebase and IsaacLab's structure, I have a much simpler and more robust approach    │ │
+│ │ than Gemini's suggestion.                                                                                 │ │
+│ │                                                                                                           │ │
+│ │ Key Insight: Use Existing IsaacLab Architecture                                                           │ │
+│ │                                                                                                           │ │
+│ │ IsaacLab already has a mature keyboard device system (Se2Keyboard) that handles all the complex keyboard  │ │
+│ │ event management. Instead of building our own event system, we should leverage this.                      │ │
+│ │                                                                                                           │ │
+│ │ The Better Approach: Minimal Integration                                                                  │ │
+│ │                                                                                                           │ │
+│ │ Step 1: Create KeyboardTeleopCommand Class                                                                │ │
+│ │                                                                                                           │ │
+│ │ - Add to existing velocity_command.py file (same as Gemini suggested)                                     │ │
+│ │ - But use Se2Keyboard device from IsaacLab instead of manual keyboard events                              │ │
+│ │ - Much cleaner: self.keyboard = Se2Keyboard(Se2KeyboardCfg())                                             │ │
+│ │ - No event subscription/cleanup complexity                                                                │ │
+│ │ - More robust and tested                                                                                  │ │
+│ │                                                                                                           │ │
+│ │ Step 2: Simple Command Update Logic                                                                       │ │
+│ │                                                                                                           │ │
+│ │ def _update_command(self):                                                                                │ │
+│ │     # Get current keyboard input as [vx, vy, omega_z]                                                     │ │
+│ │     kb_input = self.keyboard.advance()                                                                    │ │
+│ │                                                                                                           │ │
+│ │     # Convert to our 4D format [vx, vy, omega_z, height]                                                  │ │
+│ │     self.vel_command_b[:, :3] = kb_input                                                                  │ │
+│ │     self.vel_command_b[:, 3] = self.cfg.target_height                                                     │ │
+│ │                                                                                                           │ │
+│ │ Step 3: One-Line Config Change                                                                            │ │
+│ │                                                                                                           │ │
+│ │ Replace UniformVelocityWithZCommandCfg with KeyboardTeleopCommandCfg in the config - exactly as Gemini    │ │
+│ │ suggested.                                                                                                │ │
+│ │                                                                                                           │ │
+│ │ Why This Is Better Than Gemini's Plan                                                                     │ │
+│ │                                                                                                           │ │
+│ │ 1. No manual event handling - Let IsaacLab's proven device system handle it                               │ │
+│ │ 2. Automatic cleanup - The device handles subscription/unsubscription                                     │ │
+│ │ 3. Less code - ~30 lines vs 80+ lines                                                                     │ │
+│ │ 4. More robust - Uses tested IsaacLab patterns                                                            │ │
+│ │ 5. Future-proof - Easy to extend or switch devices later                                                  │ │
+│ │                                                                                                           │ │
+│ │ Files to Modify                                                                                           │ │
+│ │                                                                                                           │ │
+│ │ 1. velocity_command.py - Add new class (~30 lines)                                                        │ │
+│ │ 2. flat_env_stand_drive_cfg.py - Change one import + one config line                                      │ │
+│ │                                                                                                           │ │
+│ │ This approach gives you keyboard control with minimal risk and maximum compatibility with IsaacLab's      │ │
+│ │ architecture.                            
+
+
+
+
+
+- CLAUDE PLAN 2-----------------------------
+######################################################
+
+
+//............................
+//....##..##........333333....
+//....##..##.......33333333...
+//....##..##...... 33333333...
+//...###..##...... 333..3333..
+//.##########...........333...
+//.##########........333333...
+//...##..##..........33333....
+//...##..##..........333333...
+//.##########..........33333..
+//.##########..... 333..3333..
+//..##..##........ 333333333..
+//..##..##........ 33333333...
+//..##..##.........33333333...
+//...................3333.....
+//............................
+
+
+✻ Thinking…
+
+  Perfect! I can see that Se2Keyboard, Se2KeyboardCfg are properly exported from isaaclab.devices. So the import 
+  will be:
+
+  from isaaclab.devices import Se2Keyboard, Se2KeyboardCfg
+
+  Now let me check what the Se2KeyboardCfg structure looks like again and plan this carefully...
+
+  From the Se2KeyboardCfg I saw earlier:
+  @dataclass
+  class Se2KeyboardCfg(DeviceCfg):
+      """Configuration for SE2 keyboard devices."""
+
+      v_x_sensitivity: float = 0.8
+      v_y_sensitivity: float = 0.4
+      omega_z_sensitivity: float = 1.0
+
+  And it has a sim_device parameter from DeviceCfg base class.
+
+  The Se2Keyboard returns a tensor of shape (3,) with [vx, vy, omega_z] when advance() is called.
+
+  Current structure:
+  - velocity_command.py has UniformVelocityWithZCommand that inherits from UniformVelocityCommand
+  - It has self.vel_command_b with shape (num_envs, 4) where 4 = [vx, vy, omega_z, z_pos]
+  - _update_command() is called every step
+
+  So the plan:
+
+  1. In velocity_command.py:
+    - Add import: from isaaclab.devices import Se2Keyboard, Se2KeyboardCfg  
+    - Add new config class: KeyboardTeleopCommandCfg inheriting from UniformVelocityWithZCommandCfg
+    - Add new command class: KeyboardTeleopCommand inheriting from UniformVelocityWithZCommand
+    - In init: Create Se2Keyboard instance
+    - In _update_command(): Call keyboard.advance() and set the command
+
+  I'll focus on integrating the keyboard input into the existing velocity command structure. The key is to map 
+  the keyboard's (3,) tensor directly into the command's (4,) tensor, maintaining the z_pos component. This means
+   carefully translating the keyboard sensitivities into meaningful robot movement commands.
+
+  The configuration will need to allow customization of keyboard sensitivity, matching the Se2KeyboardCfg 
+  parameters. I'll design the new classes to provide flexible teleoperational control while preserving the 
+  existing command architecture.
+
+╭───────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Ready to code?                                                                                                │
+│                                                                                                               │
+│ Here is Claude's plan:                                                                                        │
+│ ╭───────────────────────────────────────────────────────────────────────────────────────────────────────────╮ │
+│ │ Complete Teleop Command Implementation Plan                                                               │ │
+│ │                                                                                                           │ │
+│ │ After careful analysis, here's the exact implementation:                                                  │ │
+│ │                                                                                                           │ │
+│ │ Step 1: Modify velocity_command.py                                                                        │ │
+│ │                                                                                                           │ │
+│ │ Add import at top (after line 8):                                                                         │ │
+│ │ from isaaclab.devices import Se2Keyboard, Se2KeyboardCfg                                                  │ │
+│ │                                                                                                           │ │
+│ │ Add new classes at the end of file (after line 186):                                                      │ │
+│ │                                                                                                           │ │
+│ │ @configclass                                                                                              │ │
+│ │ class KeyboardTeleopCommandCfg(UniformVelocityWithZCommandCfg):                                           │ │
+│ │     """Configuration for keyboard teleop command generator."""                                            │ │
+│ │                                                                                                           │ │
+│ │     class_type: type = KeyboardTeleopCommand                                                              │ │
+│ │                                                                                                           │ │
+│ │     # Keyboard sensitivity settings                                                                       │ │
+│ │     v_x_sensitivity: float = 1.0                                                                          │ │
+│ │     v_y_sensitivity: float = 0.5                                                                          │ │
+│ │     omega_z_sensitivity: float = 1.0                                                                      │ │
+│ │     target_height: float = 0.3                                                                            │ │
+│ │                                                                                                           │ │
+│ │                                                                                                           │ │
+│ │ class KeyboardTeleopCommand(UniformVelocityWithZCommand):                                                 │ │
+│ │     """Keyboard teleoperation command generator."""                                                       │ │
+│ │                                                                                                           │ │
+│ │     def __init__(self, cfg: KeyboardTeleopCommandCfg, env: ManagerBasedEnv):                              │ │
+│ │         # Call parent constructor                                                                         │ │
+│ │         super().__init__(cfg, env)                                                                        │ │
+│ │                                                                                                           │ │
+│ │         # Create keyboard device using Isaac Lab's proven system                                          │ │
+│ │         keyboard_cfg = Se2KeyboardCfg(                                                                    │ │
+│ │             v_x_sensitivity=cfg.v_x_sensitivity,                                                          │ │
+│ │             v_y_sensitivity=cfg.v_y_sensitivity,                                                          │ │
+│ │             omega_z_sensitivity=cfg.omega_z_sensitivity,                                                  │ │
+│ │             sim_device=self.device                                                                        │ │
+│ │         )                                                                                                 │ │
+│ │         self.keyboard = Se2Keyboard(keyboard_cfg)                                                         │ │
+│ │                                                                                                           │ │
+│ │     def _update_command(self):                                                                            │ │
+│ │         # Get keyboard input as [vx, vy, omega_z] tensor                                                  │ │
+│ │         kb_input = self.keyboard.advance()                                                                │ │
+│ │                                                                                                           │ │
+│ │         # Set command for all environments (shape: [num_envs, 4])                                         │ │
+│ │         self.vel_command_b[:, :3] = kb_input  # [vx, vy, omega_z]                                         │ │
+│ │         self.vel_command_b[:, 3] = self.cfg.target_height  # z position                                   │ │
+│ │                                                                                                           │ │
+│ │ Step 2: Modify flat_env_stand_drive_cfg.py                                                                │ │
+│ │                                                                                                           │ │
+│ │ Add import at top (after line 11):                                                                        │ │
+│ │ from lab.flamingo.tasks.manager_based.locomotion.velocity.mdp.velocity_command import                     │ │
+│ │ KeyboardTeleopCommandCfg                                                                                  │ │
+│ │                                                                                                           │ │
+│ │ Replace config in CommandsCfg class (around line 147):                                                    │ │
+│ │ # REPLACE this line:                                                                                      │ │
+│ │ # base_velocity = mdp.UniformVelocityWithZCommandCfg(...)                                                 │ │
+│ │                                                                                                           │ │
+│ │ # WITH:                                                                                                   │ │
+│ │ base_velocity = KeyboardTeleopCommandCfg(                                                                 │ │
+│ │     asset_name="robot",                                                                                   │ │
+│ │     resampling_time_range=(6.0, 8.0),                                                                     │ │
+│ │     v_x_sensitivity=1.0,                                                                                  │ │
+│ │     v_y_sensitivity=0.5,                                                                                  │ │
+│ │     omega_z_sensitivity=1.0,                                                                              │ │
+│ │     target_height=0.3,                                                                                    │ │
+│ │     debug_vis=True,                                                                                       │ │
+│ │     ranges=mdp.UniformVelocityWithZCommandCfg.Ranges(                                                     │ │
+│ │         lin_vel_x=(-1.5, 1.5), lin_vel_y=(0.0, 0.0),                                                      │ │
+│ │         ang_vel_z=(-2.5, 2.5), pos_z=(0.0, 0.0)                                                           │ │
+│ │     )                                                                                                     │ │
+│ │ )                                                                                                         │ │
+│ │                                                                                                           │ │
+│ │ Verification Checklist:                                                                                   │ │
+│ │                                                                                                           │ │
+│ │ - ✅ Se2Keyboard exists: Confirmed in /home/amogh/IsaacLab/source/isaaclab/isaaclab/devices/__init__.py    │ │
+│ │ - ✅ Import path: from isaaclab.devices import Se2Keyboard, Se2KeyboardCfg                                 │ │
+│ │ - ✅ Interface: advance() returns torch.Tensor shape (3,) with [vx, vy, omega_z]                           │ │
+│ │ - ✅ Device handling: Pass sim_device to config for proper tensor device placement                         │ │
+│ │ - ✅ Inheritance: Inherits from existing working UniformVelocityWithZCommand                               │ │
+│ │ - ✅ Minimal changes: Only 2 files, ~20 new lines total                                                    │ │
+│ │                                                                                                           │ │
+│ │ Key Mappings (from Isaac Lab):                                                                            │ │
+│ │                                                                                                           │ │
+│ │ - Forward/Backward: Arrow Up/Down or Numpad 8/2                                                           │ │
+│ │ - Left/Right: Arrow Left/Right or Numpad 4/6                                                              │ │
+│ │ - Rotate: Z/X or Numpad 7/9                                                                               │ │
+│ │ - Reset: L key                                                                                            │ │
+│ │                                                                                                           │ │
+│ │ This leverages Isaac Lab's proven keyboard system with minimal changes to your working code.        
+
+
+//.....................................................
+//.TTTTTTTTTTT.RRRRRRRRR..RYYY.....YYY..........4444...
+//.TTTTTTTTTTT.RRRRRRRRRRRRYYYY...YYYY.........44444...
+//.TTTTTTTTTTT.RRRRRRRRRRR.YYYY..YYYY..........44444...
+//.....TTT.....RRR....RRRR..YYYY.YYYY.........444444...
+//.....TTT.....RRR.....RRR..YYYYYYYY.........4444444...
+//.....TTT.....RRR....RRRR...YYYYYYY.........444.444...
+//.....TTT.....RRRRRRRRRRR...YYYYYY......... 444.444...
+//.....TTT.....RRRRRRRRRR.....YYYYY......... 44..444...
+//.....TTT.....RRRRRRRRR......YYYY......... 44444444..
+//.....TTT.....RRR...RRRR.....YYYY......... 44444444..
+//.....TTT.....RRR...RRRRR....YYYY......... 44444444..
+//.....TTT.....RRR....RRRR....YYYY...............444...
+//.....TTT.....RRR.....RRRR...YYYY...............444...
+//.....................................................
+
+
+- missed keybaord sensitivity
+Complete Teleop Command Implementation Plan (Corrected)                                                        │ │
+│ │                                                                                                                │ │
+│ │ After identifying the value mapping issue, here's the corrected implementation:                                │ │
+│ │                                                                                                                │ │
+│ │ Step 1: Modify velocity_command.py                                                                             │ │
+│ │                                                                                                                │ │
+│ │ Add import at top (after line 8):                                                                              │ │
+│ │ from isaaclab.devices import Se2Keyboard, Se2KeyboardCfg                                                       │ │
+│ │                                                                                                                │ │
+│ │ Add new classes at the end of file (after line 186):                                                           │ │
+│ │                                                                                                                │ │
+│ │ @configclass                                                                                                   │ │
+│ │ class KeyboardTeleopCommandCfg(UniformVelocityWithZCommandCfg):                                                │ │
+│ │     """Configuration for keyboard teleop command generator."""                                                 │ │
+│ │                                                                                                                │ │
+│ │     class_type: type = KeyboardTeleopCommand                                                                   │ │
+│ │                                                                                                                │ │
+│ │     # Keyboard sensitivity settings - matched to robot ranges                                                  │ │
+│ │     v_x_sensitivity: float = 1.0      # Matches lin_vel_x: (-1.0, 1.0)                                         │ │
+│ │     v_y_sensitivity: float = 0.5      # Conservative y velocity                                                │ │
+│ │     omega_z_sensitivity: float = 2.0  # Matches ang_vel_z: (-2.0, 2.0)                                         │ │
+│ │     target_height: float = 0.25       # Mid-range of pos_z: (0.1931942, 0.3531942)                             │ │
+│ │                                                                                                                │ │
+│ │                                                                                                                │ │
+│ │ class KeyboardTeleopCommand(UniformVelocityWithZCommand):                                                      │ │
+│ │     """Keyboard teleoperation command generator."""                                                            │ │
+│ │                                                                                                                │ │
+│ │     def __init__(self, cfg: KeyboardTeleopCommandCfg, env: ManagerBasedEnv):                                   │ │
+│ │         # Call parent constructor                                                                              │ │
+│ │         super().__init__(cfg, env)                                                                             │ │
+│ │                                                                                                                │ │
+│ │         # Create keyboard device with sensitivity matched to robot ranges                                      │ │
+│ │         keyboard_cfg = Se2KeyboardCfg(                                                                         │ │
+│ │             v_x_sensitivity=cfg.v_x_sensitivity,    # ±1.0 m/s                                                 │ │
+│ │             v_y_sensitivity=cfg.v_y_sensitivity,    # ±0.5 m/s                                                 │ │
+│ │             omega_z_sensitivity=cfg.omega_z_sensitivity,  # ±2.0 rad/s                                         │ │
+│ │             sim_device=self.device                                                                             │ │
+│ │         )                                                                                                      │ │
+│ │         self.keyboard = Se2Keyboard(keyboard_cfg)                                                              │ │
+│ │                                                                                                                │ │
+│ │     def _update_command(self):                                                                                 │ │
+│ │         # Get keyboard input as [vx, vy, omega_z] tensor                                                       │ │
+│ │         kb_input = self.keyboard.advance()                                                                     │ │
+│ │                                                                                                                │ │
+│ │         # Apply safety clamping to robot's expected ranges                                                     │ │
+│ │         vx = torch.clamp(kb_input[0], -1.0, 1.0)        # Your lin_vel_x range                                 │ │
+│ │         vy = torch.clamp(kb_input[1], -0.5, 0.5)        # Safe y range                                         │ │
+│ │         omega_z = torch.clamp(kb_input[2], -2.0, 2.0)   # Your ang_vel_z range                                 │ │
+│ │                                                                                                                │ │
+│ │         # Set command for all environments (shape: [num_envs, 4])                                              │ │
+│ │         self.vel_command_b[:, 0] = vx                                                                          │ │
+│ │         self.vel_command_b[:, 1] = vy                                                                          │ │
+│ │         self.vel_command_b[:, 2] = omega_z                                                                     │ │
+│ │         self.vel_command_b[:, 3] = self.cfg.target_height  # Fixed height in safe range                        │ │
+│ │                                                                                                                │ │
+│ │ Step 2: Modify flat_env_stand_drive_cfg.py                                                                     │ │
+│ │                                                                                                                │ │
+│ │ Add import after existing mdp import (after line 11):                                                          │ │
+│ │ from lab.flamingo.tasks.manager_based.locomotion.velocity.mdp.velocity_command import KeyboardTeleopCommandCfg │ │
+│ │                                                                                                                │ │
+│ │ Replace base_velocity config in CommandsCfg class (around line 147):                                           │ │
+│ │ # REPLACE:                                                                                                     │ │
+│ │ # base_velocity = mdp.UniformVelocityWithZCommandCfg(...)                                                      │ │
+│ │                                                                                                                │ │
+│ │ # WITH:                                                                                                        │ │
+│ │ base_velocity = KeyboardTeleopCommandCfg(                                                                      │ │
+│ │     asset_name="robot",                                                                                        │ │
+│ │     resampling_time_range=(6.0, 8.0),                                                                          │ │
+│ │     rel_standing_envs=0.01,                                                                                    │ │
+│ │     rel_heading_envs=0.0,                                                                                      │ │
+│ │     heading_command=False,                                                                                     │ │
+│ │     debug_vis=True,                                                                                            │ │
+│ │     v_x_sensitivity=1.0,      # ±1.0 m/s (matches robot range)                                                 │ │
+│ │     v_y_sensitivity=0.5,      # ±0.5 m/s (conservative)                                                        │ │
+│ │     omega_z_sensitivity=2.0,  # ±2.0 rad/s (matches robot range)                                               │ │
+│ │     target_height=0.25,       # Safe height in pos_z range                                                     │ │
+│ │     ranges=mdp.UniformVelocityWithZCommandCfg.Ranges(                                                          │ │
+│ │         lin_vel_x=(-1.0, 1.0), lin_vel_y=(-0.0, 0.0),                                                          │ │
+│ │         ang_vel_z=(-2.0, 2.0), pos_z=(0.1931942, 0.3531942)                                                    │ │
+│ │     ),                                                                                                         │ │
+│ │     initial_phase_time=2.0,                                                                                    │ │
+│ │ )                                                                                                              │ │
+│ │                                                                                                                │ │
+│ │ Key Features:                                                                                                  │ │
+│ │                                                                                                                │ │
+│ │ - ✅ Proper value mapping: Sensitivity values match your robot's command ranges                                 │ │
+│ │ - ✅ Safety clamping: torch.clamp() prevents out-of-range commands                                              │ │
+│ │ - ✅ Uses Isaac Lab: Leverages proven Se2Keyboard system                                                        │ │
+│ │ - ✅ Minimal changes: Only 2 files, ~35 lines total                                                             │ │
+│ │ - ✅ Inherits everything: Full compatibility with existing system                                               │ │
+│ │                                                                                                                │ │
+│ │ Controls:                                                                                                      │ │
+│ │                                                                                                                │ │
+│ │ - Forward/Backward: Arrow Up/Down (±1.0 m/s)                                                                   │ │
+│ │ - Strafe Left/Right: Arrow Left/Right (±0.5 m/s)                                                               │ │
+│ │ - Rotate: Z/X keys (±2.0 rad/s)                                                                                │ │
+│ │ - Reset: L key                                                                                                 │ │
+│ │                                                                                                                │ │
+│ │ This ensures keyboard commands are properly mapped to your robot's expected velocity ranges.                 
