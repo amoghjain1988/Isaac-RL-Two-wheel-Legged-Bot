@@ -144,13 +144,17 @@ class MySceneCfg(InteractiveSceneCfg):
 class CommandsCfg:
     """Command specifications for the MDP."""
 
-    base_velocity = mdp.UniformVelocityWithZCommandCfg(
+    base_velocity = mdp.KeyboardTeleopCommandCfg(
         asset_name="robot",
         resampling_time_range=(6.0, 8.0),
         rel_standing_envs=0.01,
         rel_heading_envs=0.0,
         heading_command=False,
         debug_vis=True,
+        v_x_sensitivity=1.0,      # ±1.0 m/s (matches robot range)
+        v_y_sensitivity=0.5,      # ±0.5 m/s (conservative)  
+        omega_z_sensitivity=2.0,  # ±2.0 rad/s (matches robot range)
+        target_height=0.25,       # Safe height in pos_z range
         ranges=mdp.UniformVelocityWithZCommandCfg.Ranges(
             lin_vel_x=(-1.0, 1.0), lin_vel_y=(-0.0, 0.0), ang_vel_z=(-2.0, 2.0), pos_z=(0.1931942, 0.3531942)
         ),

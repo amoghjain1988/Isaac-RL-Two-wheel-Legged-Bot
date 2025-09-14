@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from isaaclab.utils import configclass
 import numpy as np
 
-
+from isaaclab.devices import Se2Keyboard, Se2KeyboardCfg
 from isaaclab.envs.mdp import UniformVelocityCommand
 from isaaclab.envs.mdp.commands.commands_cfg import UniformVelocityCommandCfg
 
@@ -183,3 +183,55 @@ class UniformVelocityWithZCommandCfg(UniformVelocityCommandCfg):
 
     initial_phase_time: float = 2.0
     """Time for which the initial phase lasts."""
+
+
+@configclass
+class KeyboardTeleopCommandCfg(UniformVelocityWithZCommandCfg):
+    """Configuration for keyboard teleop command generator."""
+    
+    class_type: type = KeyboardTeleopCommand
+    
+    # Keyboard sensitivity settings - matched to robot ranges
+    v_x_sensitivity: float = 1.0      # Matches lin_vel_x: (-1.0, 1.0)
+    v_y_sensitivity: float = 0.5      # Conservative y velocity
+    omega_z_sensitivity: float = 2.0  # Matches ang_vel_z: (-2.0, 2.0)
+    target_height: float = 0.25       # Mid-range of pos_z: (0.1931942, 0.3531942)
+
+
+class KeyboardTeleopCommand(UniformVelocityWithZCommand):
+    """Keyboard teleoperation command generator."""
+    
+    def __init__(self, cfg: KeyboardTeleopCommandCfg, env: ManagerBasedEnv):
+        """Initialize the keyboard teleop command generator.
+        
+        Args:
+            cfg: The configuration of the command generator.
+            env: The environment.
+        """
+        # Call parent constructor
+        super().__init__(cfg, env)
+        
+        # Create keyboard device with sensitivity matched to robot ranges
+        keyboard_cfg = Se2KeyboardCfg(
+            v_x_sensitivity=cfg.v_x_sensitivity,    # ±1.0 m/s
+            v_y_sensitivity=cfg.v_y_sensitivity,    # ±0.5 m/s
+            omega_z_sensitivity=cfg.omega_z_sensitivity,  # ±2.0 rad/s
+            sim_device=self.device
+        )
+        self.keyboard = Se2Keyboard(keyboard_cfg)
+        
+    def _update_command(self):
+        """Update the command based on keyboard input."""
+        # Get keyboard input as [vx, vy, omega_z] tensor
+        kb_input = self.keyboard.advance()
+        
+        # Apply safety clamping to robot's expected ranges
+        vx = torch.clamp(kb_input[0], -1.0, 1.0)        # Your lin_vel_x range
+        vy = torch.clamp(kb_input[1], -0.5, 0.5)        # Safe y range
+        omega_z = torch.clamp(kb_input[2], -2.0, 2.0)   # Your ang_vel_z range
+        
+        # Set command for all environments (shape: [num_envs, 4])
+        self.vel_command_b[:, 0] = vx
+        self.vel_command_b[:, 1] = vy  
+        self.vel_command_b[:, 2] = omega_z
+        self.vel_command_b[:, 3] = self.cfg.target_height  # Fixed height in safe range
