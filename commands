@@ -96,9 +96,10 @@ cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
   2>&1 | tee "$HOME/source/Isaac-RL-Two-wheel-Legged-Bot/logs/rough_terrain_train-$(TZ='America/Toronto' date +'%Y%m%d_%H%M%S').log"
 
 
+
 # play Command
 cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
-~/IsaacLab/isaaclab.sh -p scripts/co_rl/play.py --task Isaac-Velocity-Rough-Flamingo-v1-ppo --algo ppo --num_envs 1 --num_policy_stacks 2 --num_critic_stacks 2 --load_run 2025-09-14_11-04-38  --checkpoint model_6900.pt \
+~/IsaacLab/isaaclab.sh -p scripts/co_rl/play.py --task Isaac-Velocity-Rough-Flamingo-v1-ppo --algo ppo --num_envs 1 --num_policy_stacks 2 --num_critic_stacks 2 --load_run 2025-09-14_17-04-36 \
 2>&1 | tee "$HOME/source/Isaac-RL-Two-wheel-Legged-Bot/logs/co_rl_Play-$(TZ='America/Toronto' date +'%Y%m%d_%H%M%S').log"
   
 
@@ -106,3 +107,4 @@ cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
 # Tensorboard Setup
 cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
 ~/IsaacLab/isaaclab.sh  -p -m tensorboard.main --logdir ./logs/co_rl/ --bind_all
+
