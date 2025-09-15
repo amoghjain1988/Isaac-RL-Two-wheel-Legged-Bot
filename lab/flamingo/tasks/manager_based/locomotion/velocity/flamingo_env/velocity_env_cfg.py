@@ -32,6 +32,8 @@ from lab.flamingo.tasks.manager_based.locomotion.velocity.sensors import LiftMas
 ##
 # Pre-defined configs
 ##
+# amogh -test
+# from lab.flamingo.tasks.manager_based.locomotion.velocity.terrain_config.rough_config import ROUGH_TERRAINS_CFG
 from lab.flamingo.tasks.manager_based.locomotion.velocity.terrain_config.stair_config import ROUGH_TERRAINS_CFG
 
 ##
