@@ -108,3 +108,6 @@ cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
 cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
 ~/IsaacLab/isaaclab.sh  -p -m tensorboard.main --logdir ./logs/co_rl/ --bind_all
 
+
+# Export all tensorboard graphs
+source venv/bin/activate
