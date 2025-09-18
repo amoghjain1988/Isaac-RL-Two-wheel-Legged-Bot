@@ -197,21 +197,30 @@ class OnPolicyRunner:
                 value = torch.mean(infotensor)
                 # log to logger and terminal
                 if "/" in key:
-                    self.writer.add_scalar(key, value, locs["it"])
+                    self.writer.add_scalar(key, value, self.tot_timesteps)
+                    self.writer.add_scalar(key + "_vs_episodes", value, locs["it"])
                     ep_string += f"""{f'{key}':>{pad}} {value:.4f}\n"""
                 else:
-                    self.writer.add_scalar("Episode/" + key, value, locs["it"])
+                    self.writer.add_scalar("Episode/" + key, value, self.tot_timesteps)
+                    self.writer.add_scalar("Episode/" + key + "_vs_episodes", value, locs["it"])
                     ep_string += f"""{f'Mean episode {key}:':>{pad}} {value:.4f}\n"""
         mean_std = self.alg.actor_critic.std.mean()
         fps = int(self.num_steps_per_env * self.env.num_envs / (locs["collection_time"] + locs["learn_time"]))
 
-        self.writer.add_scalar("Loss/value_function", locs["mean_value_loss"], locs["it"])
-        self.writer.add_scalar("Loss/surrogate", locs["mean_surrogate_loss"], locs["it"])
-        self.writer.add_scalar("Loss/learning_rate", self.alg.learning_rate, locs["it"])
-        self.writer.add_scalar("Policy/mean_noise_std", mean_std.item(), locs["it"])
-        self.writer.add_scalar("Perf/total_fps", fps, locs["it"])
-        self.writer.add_scalar("Perf/collection time", locs["collection_time"], locs["it"])
-        self.writer.add_scalar("Perf/learning_time", locs["learn_time"], locs["it"])
+        self.writer.add_scalar("Loss/value_function", locs["mean_value_loss"], self.tot_timesteps)
+        self.writer.add_scalar("Loss/value_function_vs_episodes", locs["mean_value_loss"], locs["it"])
+        self.writer.add_scalar("Loss/surrogate", locs["mean_surrogate_loss"], self.tot_timesteps)
+        self.writer.add_scalar("Loss/surrogate_vs_episodes", locs["mean_surrogate_loss"], locs["it"])
+        self.writer.add_scalar("Loss/learning_rate", self.alg.learning_rate, self.tot_timesteps)
+        self.writer.add_scalar("Loss/learning_rate_vs_episodes", self.alg.learning_rate, locs["it"])
+        self.writer.add_scalar("Policy/mean_noise_std", mean_std.item(), self.tot_timesteps)
+        self.writer.add_scalar("Policy/mean_noise_std_vs_episodes", mean_std.item(), locs["it"])
+        self.writer.add_scalar("Perf/total_fps", fps, self.tot_timesteps)
+        self.writer.add_scalar("Perf/total_fps_vs_episodes", fps, locs["it"])
+        self.writer.add_scalar("Perf/collection time", locs["collection_time"], self.tot_timesteps)
+        self.writer.add_scalar("Perf/collection_time_vs_episodes", locs["collection_time"], locs["it"])
+        self.writer.add_scalar("Perf/learning_time", locs["learn_time"], self.tot_timesteps)
+        self.writer.add_scalar("Perf/learning_time_vs_episodes", locs["learn_time"], locs["it"])
 
         # log commanded and applied torque
         # Access unwrapped environment following wrapper pattern best practices
@@ -223,18 +232,22 @@ class OnPolicyRunner:
             # Log commanded torque (what controller requests)
             if hasattr(robot, 'data') and robot.data.joint_effort_target is not None:
                 mean_commanded_torque = torch.mean(torch.abs(robot.data.joint_effort_target))
-                self.writer.add_scalar("Metrics/mean_commanded_torque", mean_commanded_torque.item(), locs["it"])
+                self.writer.add_scalar("Metrics/mean_commanded_torque", mean_commanded_torque.item(), self.tot_timesteps)
+                self.writer.add_scalar("Metrics/mean_commanded_torque_vs_episodes", mean_commanded_torque.item(), locs["it"])
             
             # Log applied torque (actual motor output after clipping)
             if hasattr(robot, 'actuators'):
                 for actuator_name, actuator in robot.actuators.items():
                     if hasattr(actuator, 'applied_effort'):
                         mean_applied_torque = torch.mean(torch.abs(actuator.applied_effort))
-                        self.writer.add_scalar(f"Metrics/mean_applied_torque_{actuator_name}", mean_applied_torque.item(), locs["it"])
+                        self.writer.add_scalar(f"Metrics/mean_applied_torque_{actuator_name}", mean_applied_torque.item(), self.tot_timesteps)
+                        self.writer.add_scalar(f"Metrics/mean_applied_torque_{actuator_name}_vs_episodes", mean_applied_torque.item(), locs["it"])
 
         if len(locs["rewbuffer"]) > 0:
-            self.writer.add_scalar("Train/mean_reward", statistics.mean(locs["rewbuffer"]), locs["it"])
-            self.writer.add_scalar("Train/mean_episode_length", statistics.mean(locs["lenbuffer"]), locs["it"])
+            self.writer.add_scalar("Train/mean_reward_vs_episodes", statistics.mean(locs["rewbuffer"]), locs["it"])
+            self.writer.add_scalar("Train/mean_reward", statistics.mean(locs["rewbuffer"]), self.tot_timesteps)
+            self.writer.add_scalar("Train/mean_episode_length_vs_episodes", statistics.mean(locs["lenbuffer"]), locs["it"])
+            self.writer.add_scalar("Train/mean_episode_length", statistics.mean(locs["lenbuffer"]), self.tot_timesteps)
             if self.logger_type != "wandb":  # wandb does not support non-integer x-axis logging
                 self.writer.add_scalar("Train/mean_reward/time", statistics.mean(locs["rewbuffer"]), self.tot_time)
                 self.writer.add_scalar(
