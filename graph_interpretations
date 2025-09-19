@@ -1,0 +1,196 @@
+
+   Key Components Found:
+
+    1. Graph Generation Source: export_tensorboard.py exports all scalar data from TensorBoard logs
+    2. Logging Source: on_policy_runner.py contains all writer.add_scalar() calls that create the graphs
+    3. Graph Categories: Loss, Policy, Performance, Metrics, Training, Episodes, and Curriculum
+
+    Deliverable:
+
+    Create a comprehensive guide that explains:
+
+    For Each Graph Type:
+    - Graph name and category
+    - X-axis interpretation (steps, episodes, time)  
+    - Y-axis interpretation (units, ranges, meaning)
+    - What the graph represents in isolation
+    - Input sources and how the data is generated
+    - Expected patterns and what they indicate
+    - Relationship to robot performance
+
+    Graph Categories Identified:
+    1. Loss Graphs: value_function, surrogate, learning_rate (vs steps & episodes)
+    2. Policy Graphs: mean_noise_std (vs steps & episodes) 
+    3. Performance Graphs: total_fps, collection_time, learning_time (vs steps & episodes)
+    4. Metrics Graphs: mean_commanded_torque, mean_applied_torque_[actuator] (vs steps & episodes)
+    5. Training Graphs: mean_reward, mean_episode_length (vs steps, episodes, time)
+    6. Episode Graphs: All curriculum and reward data from environment infos
+    7. Curriculum Graphs: terrain_levels (when enabled)
+
+  
+  Comprehensive TensorBoard Graph Interpretations
+
+  Based on analysis of your export_tensorboard.py and the logging system, here are all the graphs generated during training:
+
+  1. Loss Graphs
+
+  Loss/value_function & Loss/value_function_vs_episodes
+
+  - X-axis: Training steps (timesteps) / Episode iterations
+  - Y-axis: Value function loss (MSE units, typically 0.001-1.0)
+  - Represents: How well the critic network predicts future rewards
+  - Input: mean_value_loss from PPO algorithm
+  - Expected Pattern: Should decrease and stabilize during training
+  - Good Range: < 0.1 indicates good value function learning
+
+  Loss/surrogate & Loss/surrogate_vs_episodes
+
+  - X-axis: Training steps / Episode iterations
+  - Y-axis: Policy gradient loss (typically -0.1 to 0.1)
+  - Represents: PPO policy improvement objective
+  - Input: mean_surrogate_loss from PPO algorithm
+  - Expected Pattern: Should oscillate around 0, staying within PPO clip bounds
+  - Interpretation: Negative values = policy improvement, positive = policy degradation
+
+  Loss/learning_rate & Loss/learning_rate_vs_episodes
+
+  - X-axis: Training steps / Episode iterations
+  - Y-axis: Learning rate (typically 1e-5 to 1e-3)
+  - Represents: Current optimizer learning rate
+  - Input: self.alg.learning_rate from PPO scheduler
+  - Expected Pattern: May decay over time if using LR scheduling
+  - Interpretation: Controls training speed vs stability tradeoff
+
+  2. Policy Graphs
+
+  Policy/mean_noise_std & Policy/mean_noise_std_vs_episodes
+
+  - X-axis: Training steps / Episode iterations
+  - Y-axis: Standard deviation (typically 0.1-2.0)
+  - Represents: Exploration noise in action selection
+  - Input: self.alg.actor_critic.std.mean()
+  - Expected Pattern: Should decrease as policy becomes more confident
+  - Interpretation: Higher = more exploration, lower = more exploitation
+
+  3. Performance Graphs
+
+  Perf/total_fps & Perf/total_fps_vs_episodes
+
+  - X-axis: Training steps / Episode iterations
+  - Y-axis: Frames per second (typically 1000-10000+ FPS)
+  - Represents: Training simulation speed
+  - Input: num_steps_per_env * num_envs / (collection_time + learn_time)
+  - Expected Pattern: Should be stable, drops indicate bottlenecks
+  - Interpretation: Higher FPS = faster training
+
+  Perf/collection_time & Perf/collection_time_vs_episodes
+
+  - X-axis: Training steps / Episode iterations
+  - Y-axis: Time in seconds (typically 0.1-5.0s)
+  - Represents: Time to collect environment rollouts
+  - Input: Time measurement during environment stepping
+  - Expected Pattern: Should be consistent, spikes indicate simulation issues
+  - Interpretation: Longer times = slower environment collection
+
+  Perf/learning_time & Perf/learning_time_vs_episodes
+
+  - X-axis: Training steps / Episode iterations
+  - Y-axis: Time in seconds (typically 0.1-2.0s)
+  - Represents: Time for neural network updates
+  - Input: Time measurement during PPO learning step
+  - Expected Pattern: May increase with larger networks/batch sizes
+  - Interpretation: Longer times = more compute-intensive learning
+
+  4. Metrics Graphs
+
+  Metrics/mean_commanded_torque & Metrics/mean_commanded_torque_vs_episodes
+
+  - X-axis: Training steps / Episode iterations
+  - Y-axis: Torque in Newton-meters (typically 0-50 Nm for your robot)
+  - Represents: Average torque commands sent to actuators
+  - Input: torch.mean(torch.abs(robot.data.joint_effort_target))
+  - Expected Pattern: Should stabilize as policy learns efficient control
+  - Interpretation: Higher values = more aggressive control
+
+  Metrics/mean_applied_torque_[actuator_name] & _vs_episodes
+
+  - X-axis: Training steps / Episode iterations
+  - Y-axis: Torque in Newton-meters (typically 0-motor_limit Nm)
+  - Represents: Actual torque output after motor limits/saturation
+  - Input: torch.mean(torch.abs(actuator.applied_effort)) per actuator
+  - Expected Pattern: Should track commanded torque but may be clipped
+  - Interpretation: Difference from commanded = motor saturation
+
+  5. Training Graphs
+
+  Train/mean_reward & Train/mean_reward_vs_episodes & Train/mean_reward/time
+
+  - X-axis: Training steps / Episode iterations / Wall-clock time
+  - Y-axis: Reward value (range depends on your reward function)
+  - Represents: Average cumulative episode reward
+  - Input: statistics.mean(rewbuffer) from completed episodes
+  - Expected Pattern: Should increase during successful training
+  - Interpretation: Higher rewards = better task performance
+
+  Train/mean_episode_length & Train/mean_episode_length_vs_episodes & Train/mean_episode_length/time
+
+  - X-axis: Training steps / Episode iterations / Wall-clock time
+  - Y-axis: Number of timesteps (0 to max_episode_length)
+  - Represents: How long episodes last before termination
+  - Input: statistics.mean(lenbuffer) from completed episodes
+  - Expected Pattern: May increase as robot learns to avoid termination
+  - Interpretation: Longer episodes = better stability/performance
+
+  6. Episode/Curriculum Graphs
+
+  Episode/[curriculum_name] & Episode/[curriculum_name]_vs_episodes
+
+  - X-axis: Training steps / Episode iterations
+  - Y-axis: Curriculum value (varies by curriculum type)
+  - Represents: Adaptive difficulty adjustments
+  - Input: From infos["episode"] or infos["log"] during environment steps
+  - Expected Pattern: Should adjust based on performance
+
+  Curriculum/terrain_levels & Curriculum/terrain_levels_vs_episodes
+
+  - X-axis: Training steps / Episode iterations
+  - Y-axis: Terrain difficulty level (0.5-4.0, higher = easier)
+  - Represents: Current terrain curriculum difficulty
+  - Input: torch.mean(terrain.terrain_levels.float()) from terrain curriculum
+  - Expected Pattern: Should start high (easy) and decrease (harder) as robot improves
+  - Interpretation:
+    - 3.5-4.0: Easiest terrain (mostly flat, 2cm steps)
+    - 0.5-1.0: Hardest terrain (full difficulty, 13cm steps)
+
+  Key Relationships:
+
+  1. Steps vs Episodes: Steps = total simulation timesteps, Episodes = number of training iterations
+  2. vs_time graphs: Show progress against wall-clock time instead of training steps
+  3. Graph Pairs: Most metrics have both step-based and episode-based versions for different time perspectives
+  4. Curriculum Adaptation: Episode info graphs show how the environment adapts difficulty based on robot performance
+
+● Update Todos
+  ⎿  ☒ Analyze all TensorBoard graph categories and types from on_policy_runner.py
+     ☒ Document Loss graphs (value_function, surrogate, learning_rate)
+     ☒ Document Policy graphs (mean_noise_std)
+     ☒ Document Performance graphs (fps, collection_time, learning_time)
+     ☒ Document Metrics graphs (torque measurements)
+     ☒ Document Training graphs (rewards, episode_length)
+     ☒ Document Episode/Curriculum graphs from environment infos
+     ☒ Create comprehensive interpretation guide with X/Y axis meanings
+
+● The comprehensive analysis shows that your TensorBoard system generates approximately 20+ different graph types across 6 main categories. Each graph provides specific insights into different aspects of your
+  robot's learning process:
+
+  Most Important for Monitoring Training:
+  - Train/mean_reward - Primary success metric
+  - Loss/value_function - Learning stability
+  - Curriculum/terrain_levels - Difficulty progression (confirmed: higher values = easier terrain)
+  - Perf/total_fps - Training efficiency
+
+  For Debugging:
+  - Metrics/mean_commanded_torque vs Metrics/mean_applied_torque_* - Motor saturation
+  - Train/mean_episode_length - Premature termination issues
+  - Policy/mean_noise_std - Exploration vs exploitation balance
+
+  Your export_tensorboard.py script automatically captures all these metrics and converts them into a comprehensive PDF report for analysis.
