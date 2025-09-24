@@ -74,5 +74,5 @@ export PATH=~/.npm-global/bin:$PATH
 # Test Rough Terrain 
   cd ~/source/Isaac-RL-Two-wheel-Legged-Bot
 
-~/IsaacLab/isaaclab.sh -p scripts/co_rl/play.py --task Isaac-Velocity-Rough-Flamingo-v1-ppo --algo ppo --num_envs 1 --num_policy_stacks 2 --num_critic_stacks 2 --load_run 2025-09-19_10-27-19 \
+~/IsaacLab/isaaclab.sh -p scripts/co_rl/play.py --task Isaac-Velocity-Rough-Flamingo-v1-ppo --algo ppo --num_envs 1 --num_policy_stacks 2 --num_critic_stacks 2 --load_run 2025-09-18_16-57-36 \
 2>&1 | tee "$HOME/source/Isaac-RL-Two-wheel-Legged-Bot/logs/co_rl_Play-rough-$(TZ='America/Toronto' date +'%Y%m%d_%H%M%S').log"
